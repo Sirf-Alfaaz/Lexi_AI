@@ -208,11 +208,17 @@ npm run dev
 
 ## Production Deployment
 
+### Frontend (Netlify)
+See [NETLIFY_DEPLOYMENT.md](./NETLIFY_DEPLOYMENT.md) for detailed deployment instructions.
+
+### Backend (Railway/Render/Fly.io)
 1. Set `EMAIL_ENABLED=true` in production
 2. Use secure MongoDB connection with proper IP whitelisting
 3. Set strong `SECRET_KEY` for JWT tokens
-4. Configure proper CORS origins
+4. Configure proper CORS origins (add your Netlify frontend URL)
 5. Use environment variables for all sensitive data
+
+For detailed deployment instructions, see [NETLIFY_DEPLOYMENT.md](./NETLIFY_DEPLOYMENT.md).
 
 ## License
 

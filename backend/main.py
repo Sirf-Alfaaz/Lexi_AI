@@ -261,7 +261,8 @@ async def shutdown_event():
 # -----------------------------
 # Enable CORS
 # -----------------------------
-origins = [
+# Default origins for local development
+default_origins = [
     "http://localhost:5173",  # Default Vite dev server
     "http://localhost:5174",  # Alternative Vite dev server port
     "http://localhost:3000",  # Alternative React dev server
@@ -271,6 +272,16 @@ origins = [
     "http://127.0.0.1:3000",  # IP version
     "http://127.0.0.1:8080",  # IP version
 ]
+
+# Get additional origins from environment variable (comma-separated)
+# Example: CORS_ORIGINS=https://your-app.netlify.app,https://your-custom-domain.com
+cors_origins_env = os.getenv("CORS_ORIGINS", "")
+if cors_origins_env:
+    additional_origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+    origins = default_origins + additional_origins
+else:
+    origins = default_origins
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

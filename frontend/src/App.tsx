@@ -340,7 +340,7 @@ function ChatTab() {
       form.append("text", question);
       form.append("language", voiceLanguage); // Use voice language for AI response
 
-      const res = await fetch("http://127.0.0.1:8000/process", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/process`, {
         method: "POST",
         body: form,
       });
@@ -853,7 +853,7 @@ function DocumentViewer({ content, action, stampValue }: { content: string; acti
         formData.append('stamp_value', stampValue);
       }
 
-      const response = await fetch('http://127.0.0.1:8000/generate-pdf', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/generate-pdf`, {
         method: 'POST',
         body: formData,
       });
@@ -1022,7 +1022,7 @@ function Processor({ defaultAction, language, setLanguage }: { defaultAction: st
         textLength: text.trim().length
       });
 
-      const res = await fetch("http://127.0.0.1:8000/process", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/process`, {
         method: "POST",
         body: form,
       });
@@ -1254,7 +1254,7 @@ export default function App() {
 
   const fetchAdminStats = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/admin/stats", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/admin/stats`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -1270,7 +1270,7 @@ export default function App() {
 
   const fetchUsersList = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/admin/users", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/admin/users`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -1294,7 +1294,7 @@ export default function App() {
     setAdminActionLoading(true);
     try {
       // Use the new admin endpoint that accepts JSON
-      const endpoint = "http://127.0.0.1:8000/admin/users/create";
+      const endpoint = `${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/admin/users/create`;
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -1332,7 +1332,7 @@ export default function App() {
     setAdminActionLoading(true);
     try {
       // Use simpler endpoint structure
-      const endpoint = `http://127.0.0.1:8000/admin/users/${user.id}/toggle-admin`;
+      const endpoint = `${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/admin/users/${user.id}/toggle-admin`;
       
       const res = await fetch(endpoint, {
         method: "PUT",
@@ -1386,7 +1386,7 @@ export default function App() {
     setAdminActionLoading(true);
     try {
       // Build URL with admin confirmation if needed
-      let url = `http://127.0.0.1:8000/admin/users/${userId}`;
+      let url = `${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/admin/users/${userId}`;
       if (userToDelete && userToDelete.is_admin) {
         url += `?admin_confirmation=${encodeURIComponent(adminDeleteConfirmation)}`;
       }
@@ -1471,7 +1471,7 @@ export default function App() {
 
   const checkAdminStatus = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/admin/stats", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/admin/stats`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -2127,7 +2127,7 @@ function Login({ setToken, setIsAdmin }: { setToken: (t: string) => void; setIsA
 
   const checkAdminStatus = async (token: string) => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/admin/stats", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/admin/stats`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -2160,7 +2160,7 @@ function Login({ setToken, setIsAdmin }: { setToken: (t: string) => void; setIsA
       setLoading(true);
       setError("");
       try {
-        const res = await fetch("http://127.0.0.1:8000/auth/send-otp", {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/auth/send-otp`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: forgotEmail })
@@ -2190,7 +2190,7 @@ function Login({ setToken, setIsAdmin }: { setToken: (t: string) => void; setIsA
       setLoading(true);
       setError("");
       try {
-        const res = await fetch("http://127.0.0.1:8000/auth/verify-otp", {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/auth/verify-otp`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: forgotEmail, otp_code: forgotOtp })
@@ -2219,7 +2219,7 @@ function Login({ setToken, setIsAdmin }: { setToken: (t: string) => void; setIsA
     setError("");
     
     try {
-      const res = await fetch("http://127.0.0.1:8000/auth/resend-otp", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/auth/resend-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: forgotEmail })
@@ -2251,7 +2251,7 @@ function Login({ setToken, setIsAdmin }: { setToken: (t: string) => void; setIsA
     try {
       console.log("Attempting login for user:", username);
       
-      const res = await fetch("http://127.0.0.1:8000/auth/login", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password })
@@ -2532,7 +2532,7 @@ function Signup() {
     setError("");
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/auth/send-otp", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email })
@@ -2568,7 +2568,7 @@ function Signup() {
     setError("");
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/auth/verify-otp", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp_code: otpCode })
@@ -2582,7 +2582,7 @@ function Signup() {
       // After OTP verification, automatically create the account
       setSuccess("Email verified successfully! Creating your account...");
       
-      const registerRes = await fetch("http://127.0.0.1:8000/auth/register", {
+      const registerRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, email, password })
@@ -2611,7 +2611,7 @@ function Signup() {
     setError("");
     
     try {
-      const res = await fetch("http://127.0.0.1:8000/auth/resend-otp", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/auth/resend-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email })
@@ -2850,7 +2850,7 @@ function OTPTestPage() {
     setMessage("");
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/auth/send-otp", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email })
@@ -2882,7 +2882,7 @@ function OTPTestPage() {
     setMessage("");
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/auth/verify-otp", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp_code: otpCode })
