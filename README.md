@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # AI Legal Companion
 
 A comprehensive legal document processing and research platform powered by AI, featuring document summarization, legal research, document generation, risk analysis, and more.
@@ -222,8 +221,3 @@ This project is proprietary software.
 ## Support
 
 For issues or questions, please contact the development team.
-
-=======
-# Lexi_AI
-Lexi AI is an intelligent learning companion that connects YouTube transcripts with textbook content using a RAG pipeline. It provides topic-wise explanations, summaries, and Q&amp;A by retrieving relevant concepts from PDFs and videos, turning long study material into easy, structured learning.
->>>>>>> 226bb2ca92e4de58ce5727119d0fa0c42336090e
