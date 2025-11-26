@@ -104,9 +104,6 @@ function ResendButton({
 
 // Chat component
 function ChatTab() {
-  const detectMobileDevice = () =>
-    typeof navigator !== "undefined" &&
-    /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<Array<{text: string, isUser: boolean}>>([
@@ -116,11 +113,9 @@ function ChatTab() {
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [autoSpeak, setAutoSpeak] = useState<boolean>(() => !detectMobileDevice()); // Auto-speak off by default on mobile
+  const [autoSpeak, setAutoSpeak] = useState(true); // New state for auto-speak toggle
   const [voiceLanguage, setVoiceLanguage] = useState<'en' | 'hi'>('en');
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [ttsSupported, setTtsSupported] = useState<boolean>(false);
-  const [sttSupported, setSttSupported] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
@@ -166,15 +161,7 @@ function ChatTab() {
 
   // Initialize speech recognition
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const hasRecognition = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
-    setSttSupported(hasRecognition);
-    if (!hasRecognition) {
-      recognitionRef.current = null;
-      return;
-    }
-    
-    if (hasRecognition) {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = false;
@@ -214,9 +201,7 @@ function ChatTab() {
 
   // Initialize speech synthesis
   useEffect(() => {
-    if (typeof window === "undefined") return;
     if ('speechSynthesis' in window) {
-      setTtsSupported(true);
       const synth = window.speechSynthesis;
       speechRef.current = null;
 
@@ -248,16 +233,10 @@ function ChatTab() {
           }
         };
       }
-    } else {
-      setTtsSupported(false);
     }
   }, []);
 
   const startListening = () => {
-    if (!sttSupported) {
-      alert("Voice input is not supported in this browser.");
-      return;
-    }
     if (recognitionRef.current && !isListening) {
       setIsListening(true);
       recognitionRef.current.start();
@@ -271,8 +250,8 @@ function ChatTab() {
     }
   };
 
-  const speakText = (text: string, force = false) => {
-    if ((!autoSpeak && !force) || !ttsSupported || !('speechSynthesis' in window)) return; // Respect auto-speak toggle or unsupported browsers
+  const speakText = (text: string) => {
+    if (!autoSpeak || !('speechSynthesis' in window)) return; // Don't speak if auto-speak is disabled or unsupported
 
     const synth = window.speechSynthesis;
     synth.cancel(); // Stop any ongoing speech before starting new one
@@ -329,10 +308,10 @@ function ChatTab() {
     synth.speak(utterance);
   };
 
-  const speakLastMessage = (force = false) => {
+  const speakLastMessage = () => {
     const lastMessage = messages[messages.length - 1];
     if (lastMessage && !lastMessage.isUser) {
-      speakText(lastMessage.text, force);
+      speakText(lastMessage.text);
     }
   };
 
@@ -482,16 +461,15 @@ function ChatTab() {
                     type="button"
                     className={`voice-button ${isListening ? 'listening' : ''}`}
                     onClick={isListening ? stopListening : startListening}
-                    disabled={isLoading || !sttSupported}
-                    title={sttSupported ? "Voice Input" : "Voice input not supported on this device"}
+                    disabled={isLoading}
+                    title="Voice Input"
                   >
                     {isListening ? '🔴' : '🎤'}
                   </button>
                   <button
                     type="button"
                     className={`voice-button ${autoSpeak ? 'active' : ''}`}
-                    onClick={() => ttsSupported && setAutoSpeak(!autoSpeak)}
-                    disabled={!ttsSupported}
+                    onClick={() => setAutoSpeak(!autoSpeak)}
                     title={autoSpeak ? "Auto-speak: ON" : "Auto-speak: OFF"}
                   >
                     {autoSpeak ? '🔊' : '🔇'}
@@ -499,24 +477,14 @@ function ChatTab() {
                   <button
                     type="button"
                     className={`voice-button ${isSpeaking ? 'speaking' : ''}`}
-                    onClick={isSpeaking ? stopSpeaking : () => speakLastMessage(true)}
-                    disabled={isLoading || messages.length === 0 || !ttsSupported}
+                    onClick={isSpeaking ? stopSpeaking : speakLastMessage}
+                    disabled={isLoading || messages.length === 0}
                     title={isSpeaking ? "Stop Speaking" : "Speak Last Message"}
                   >
                     {isSpeaking ? '⏹️' : '▶️'}
                   </button>
                 </div>
               </div>
-              {!ttsSupported && (
-                <p className="voice-support-hint">
-                  🔇 Text-to-speech is not available in this browser. Try a modern browser like Chrome or Edge.
-                </p>
-              )}
-              {!sttSupported && (
-                <p className="voice-support-hint">
-                  🎤 Voice dictation is unavailable on this device. You can still type your question.
-                </p>
-              )}
               <div className="input-wrapper">
                 <input
                   type="text"
@@ -560,7 +528,6 @@ function ChatTab() {
 
 // Document Viewer Component
 function DocumentViewer({ content, action, stampValue }: { content: string; action: string; stampValue?: string | null }) {
-  const isMobileDevice = typeof navigator !== "undefined" && /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
   // Build styled, print-ready HTML once and reuse for printing and downloading
   const buildStyledHtml = (raw: string) => {
     const title = action.charAt(0).toUpperCase() + action.slice(1).replace('-', ' ');
@@ -858,36 +825,15 @@ function DocumentViewer({ content, action, stampValue }: { content: string; acti
     }
   };
 
-  const downloadDocument = async () => {
-    const html = buildStyledHtml(content);
-    const filename = `${action}-${new Date().toISOString().split('T')[0]}.html`;
-    const file = new File([html], filename, { type: 'text/html' });
-
-    if (
-      isMobileDevice &&
-      navigator.canShare &&
-      navigator.canShare({ files: [file] })
-    ) {
-      try {
-        await navigator.share({
-          files: [file],
-          title: 'AI Legal Document',
-          text: 'Download the generated legal document.',
-        });
-        return;
-      } catch (shareError) {
-        console.warn('Share failed, falling back to download', shareError);
-      }
-    }
-
+  const downloadDocument = () => {
     const element = document.createElement('a');
-    const url = URL.createObjectURL(file);
-    element.href = url;
-    element.download = filename;
+    const html = buildStyledHtml(content);
+    const file = new Blob([html], { type: 'text/html' });
+    element.href = URL.createObjectURL(file);
+    element.download = `${action}-${new Date().toISOString().split('T')[0]}.html`;
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
   };
 
   const downloadPDF = async () => {
@@ -1297,7 +1243,6 @@ export default function App() {
   const [adminActionLoading, setAdminActionLoading] = useState(false);
   const [adminMessage, setAdminMessage] = useState({ type: '', text: '' });
   const [currentAdminPage, setCurrentAdminPage] = useState('dashboard'); // Default to dashboard
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
 
   const handleLogout = () => {
@@ -1565,32 +1510,15 @@ export default function App() {
   return (
     <Router>
       {token && (
-      <nav className={`main-nav ${mobileNavOpen ? 'mobile-open' : ''}`}>
-        <div className="nav-header-row">
-          <div className="nav-brand">
-            <span className="nav-logo">Lexi<span>AI</span></span>
-          </div>
-          <button
-            type="button"
-            className={`nav-toggle ${mobileNavOpen ? 'open' : ''}`}
-            onClick={() => setMobileNavOpen(prev => !prev)}
-            aria-label="Toggle navigation"
-          >
-            <span></span>
-            <span></span>
-            <span></span>
-          </button>
-        </div>
-        <div className={`nav-links ${mobileNavOpen ? 'open' : ''}`}>
-          <Link to="/" onClick={() => setMobileNavOpen(false)}>Home</Link>
-          <Link to="/summarizer" onClick={() => setMobileNavOpen(false)}>Summarizer</Link>
-          <Link to="/research" onClick={() => setMobileNavOpen(false)}>Research Assistant</Link>
-          <Link to="/docs" onClick={() => setMobileNavOpen(false)}>Docs Generator</Link>
+      <nav>
+        <Link to="/">Home</Link>
+        <Link to="/summarizer">Summarizer</Link>
+        <Link to="/research">Research Assistant</Link>
+        <Link to="/docs">Docs Generator</Link>
           {isAdmin && (
             <button 
               onClick={() => {
                 setShowAdminPanel(!showAdminPanel);
-                setMobileNavOpen(false);
                 if (!showAdminPanel) {
                   fetchAdminStats();
                   fetchUsersList();
@@ -1601,8 +1529,8 @@ export default function App() {
               {showAdminPanel ? 'Hide Admin' : 'Admin Panel'}
             </button>
           )}
-          <button onClick={() => { setMobileNavOpen(false); handleLogout(); }}>Logout</button>
-        </div>
+
+          <button onClick={handleLogout}>Logout</button>
       </nav>
       )}
 
