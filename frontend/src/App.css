@@ -91,6 +91,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  padding-bottom: 72px; /* keep content clear of bottom nav on mobile */
 }
 
 /* 3) Fixed navbar */
@@ -508,10 +509,10 @@ button:disabled::before {
 
 .chat-panel {
   position: fixed;
-  bottom: 80px;
-  right: 20px;
-  width: 380px;
-  height: 550px;
+  bottom: 90px;
+  right: 16px;
+  width: 360px;
+  height: 520px;
   background: rgba(255, 255, 255, 0.95);
   border-radius: 20px;
   box-shadow: var(--chat-shadow);
@@ -4432,10 +4433,10 @@ button:disabled::before {
     padding: 10px 14px;
   }
   .chat-panel {
-    width: calc(100vw - 36px);
-    right: 18px;
-    bottom: 80px;
-    height: 50vh;
+    width: calc(100vw - 32px);
+    right: 16px;
+    bottom: 96px; /* sit clearly above bottom nav */
+    height: 48vh;
   }
   .chat-messages {
     padding: 10px;
