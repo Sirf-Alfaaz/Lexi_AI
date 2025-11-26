@@ -1243,6 +1243,7 @@ export default function App() {
   const [adminActionLoading, setAdminActionLoading] = useState(false);
   const [adminMessage, setAdminMessage] = useState({ type: '', text: '' });
   const [currentAdminPage, setCurrentAdminPage] = useState('dashboard'); // Default to dashboard
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
 
   const handleLogout = () => {
@@ -1510,28 +1511,68 @@ export default function App() {
   return (
     <Router>
       {token && (
-      <nav>
-        <Link to="/">Home</Link>
-        <Link to="/summarizer">Summarizer</Link>
-        <Link to="/research">Research Assistant</Link>
-        <Link to="/docs">Docs Generator</Link>
-          {isAdmin && (
-            <button 
-              onClick={() => {
-                setShowAdminPanel(!showAdminPanel);
-                if (!showAdminPanel) {
-                  fetchAdminStats();
-                  fetchUsersList();
-                }
-              }}
-              className="admin-btn"
-            >
-              {showAdminPanel ? 'Hide Admin' : 'Admin Panel'}
-            </button>
-          )}
+        <>
+          <nav className="top-nav">
+            <div className="nav-left">
+              <button
+                type="button"
+                className={`hamburger ${isMobileNavOpen ? 'open' : ''}`}
+                onClick={() => setIsMobileNavOpen(prev => !prev)}
+                aria-label="Toggle navigation"
+              >
+                <span></span>
+                <span></span>
+                <span></span>
+              </button>
+              <span className="nav-title">
+                AI Legal Companion <span className="nav-title-icon">🚀</span>
+              </span>
+            </div>
+            <div className={`nav-links ${isMobileNavOpen ? 'open' : ''}`}>
+              <Link to="/" onClick={() => setIsMobileNavOpen(false)}>Home</Link>
+              <Link to="/summarizer" onClick={() => setIsMobileNavOpen(false)}>Summarizer</Link>
+              <Link to="/research" onClick={() => setIsMobileNavOpen(false)}>Research Assistant</Link>
+              <Link to="/docs" onClick={() => setIsMobileNavOpen(false)}>Docs Generator</Link>
+              {isAdmin && (
+                <button 
+                  onClick={() => {
+                    setShowAdminPanel(!showAdminPanel);
+                    setIsMobileNavOpen(false);
+                    if (!showAdminPanel) {
+                      fetchAdminStats();
+                      fetchUsersList();
+                    }
+                  }}
+                  className="admin-btn"
+                >
+                  {showAdminPanel ? 'Hide Admin' : 'Admin Panel'}
+                </button>
+              )}
+              <button onClick={() => { setIsMobileNavOpen(false); handleLogout(); }}>
+                Logout
+              </button>
+            </div>
+          </nav>
 
-          <button onClick={handleLogout}>Logout</button>
-      </nav>
+          <nav className="bottom-nav">
+            <Link to="/" className="bottom-nav-item">
+              <span className="bottom-nav-icon">🏠</span>
+              <span className="bottom-nav-label">Home</span>
+            </Link>
+            <Link to="/summarizer" className="bottom-nav-item">
+              <span className="bottom-nav-icon">📝</span>
+              <span className="bottom-nav-label">Summarizer</span>
+            </Link>
+            <Link to="/research" className="bottom-nav-item">
+              <span className="bottom-nav-icon">📚</span>
+              <span className="bottom-nav-label">Research</span>
+            </Link>
+            <Link to="/docs" className="bottom-nav-item">
+              <span className="bottom-nav-icon">📄</span>
+              <span className="bottom-nav-label">Docs</span>
+            </Link>
+          </nav>
+        </>
       )}
 
       <Routes>

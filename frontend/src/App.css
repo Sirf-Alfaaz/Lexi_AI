@@ -94,7 +94,7 @@ body {
 }
 
 /* 3) Fixed navbar */
-nav {
+.top-nav {
   position: fixed;
   top: 0;
   left: 0;
@@ -112,7 +112,7 @@ nav {
   backdrop-filter: blur(10px);
 }
 
-nav a {
+.top-nav a {
   color: white;
   text-decoration: none;
   font-weight: 600;
@@ -123,7 +123,7 @@ nav a {
   transition: all 0.3s ease;
 }
 
-nav a:hover { 
+.top-nav a:hover { 
   color: #facc15; 
   transform: translateY(-2px);
   background: rgba(255, 255, 255, 0.1);
@@ -4236,6 +4236,96 @@ button:disabled::before {
     border-bottom: none;
   }
 
+/* Mobile-style header pieces */
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-title {
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 0.03em;
+}
+
+.nav-title-icon {
+  margin-left: 2px;
+}
+
+.hamburger {
+  display: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.hamburger span {
+  width: 18px;
+  height: 2px;
+  background: #eef2ff;
+  border-radius: 999px;
+  transition: all 0.2s ease;
+}
+
+.hamburger.open span:nth-child(1) {
+  transform: translateY(4px) rotate(45deg);
+}
+
+.hamburger.open span:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger.open span:nth-child(3) {
+  transform: translateY(-4px) rotate(-45deg);
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Bottom navigation bar */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: #ffffff;
+  border-top: 1px solid #e5e7eb;
+  display: none;
+  align-items: center;
+  justify-content: space-around;
+  z-index: 900;
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-size: 0.75rem;
+  color: #64748b;
+  text-decoration: none;
+}
+
+.bottom-nav-icon {
+  font-size: 1.1rem;
+}
+
+.bottom-nav-label {
+  font-size: 0.7rem;
+}
+
 /* Global responsive layout tweaks */
 @media (max-width: 1024px) {
   .content {
@@ -4257,19 +4347,34 @@ button:disabled::before {
 }
 
 @media (max-width: 768px) {
-  nav {
+  .top-nav {
     flex-wrap: wrap;
     gap: 0.4rem;
     height: auto;
     padding: 0.6rem 0.8rem;
     justify-content: flex-start;
   }
-  nav a,
-  nav button {
+  .top-nav a,
+  .top-nav button {
     font-size: 0.85rem;
     padding: 8px 10px;
     border-radius: 999px;
     white-space: nowrap;
+  }
+  .hamburger {
+    display: flex;
+  }
+  .nav-links {
+    display: none;
+    width: 100%;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .nav-links.open {
+    display: flex;
+  }
+  .bottom-nav {
+    display: flex;
   }
   .chat-panel {
     width: calc(100vw - 32px);
