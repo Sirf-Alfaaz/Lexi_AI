@@ -4374,6 +4374,21 @@ button:disabled::before {
   .bottom-nav {
     display: flex;
   }
+  /* Make admin panel behave like full-screen drawer on mobile */
+  .admin-panel {
+    top: var(--nav-height);
+    left: 0;
+    right: 0;
+    bottom: 56px; /* leave room for bottom nav */
+    transform: none;
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100vh - var(--nav-height) - 56px);
+    border-radius: 20px 20px 0 0;
+  }
+  .admin-main-content {
+    padding-bottom: 24px;
+  }
   .chat-panel {
     width: calc(100vw - 32px);
     right: 16px;
