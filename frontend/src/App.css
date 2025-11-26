@@ -86,7 +86,7 @@ html, body, #root { height: 100%; width: 100%; }
 /* 2) Typography + page background */
 body {
   font-family: "Poppins", sans-serif;
-  background: linear-gradient(135deg, #f8faff 0%, #f1f5f9 100%);
+  background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 40%, #e5e7eb 100%);
   color: #1e293b;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -4304,7 +4304,7 @@ button:disabled::before {
 
 @media (max-width: 640px) {
   body {
-    background: linear-gradient(135deg, #4f46e5 0%, #9333ea 35%, #f8fafc 100%);
+    background: linear-gradient(180deg, #4f46e5 0%, #6366f1 20%, #eef2ff 55%, #f9fafb 100%);
   }
   
   .main-nav {
@@ -4392,8 +4392,8 @@ button:disabled::before {
   }
   
   .three-col {
-    padding: 0;
-    gap: 18px;
+    padding: 4px;
+    gap: 16px;
   }
   
   .card {
@@ -4424,10 +4424,10 @@ button:disabled::before {
   }
   
   .document-viewer {
-    padding: 12px;
+    padding: 10px;
     border-radius: 20px;
     border: 1px solid rgba(203, 213, 225, 0.6);
-    background: rgba(255, 255, 255, 0.96);
+    background: rgba(255, 255, 255, 0.98);
   }
   
   .document-header {
@@ -4445,21 +4445,22 @@ button:disabled::before {
   }
   
   .chat-button {
-    width: 100%;
+    width: 85%;
     border-radius: 999px;
     justify-content: center;
-    padding: 12px 16px;
+    padding: 10px 14px;
   }
   
   .chat-panel {
-    width: calc(100vw - 24px);
-    right: 12px;
-    height: 65vh;
-    bottom: 90px;
+    width: calc(100vw - 36px);
+    right: 18px;
+    height: 52vh;
+    bottom: 82px;
+    border-radius: 18px;
   }
   
   .chat-messages {
-    padding: 14px;
+    padding: 10px;
   }
   
   .voice-language-selector {
