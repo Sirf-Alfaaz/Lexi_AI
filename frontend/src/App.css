@@ -94,7 +94,7 @@ body {
 }
 
 /* 3) Fixed navbar */
-nav {
+.main-nav {
   position: fixed;
   top: 0;
   left: 0;
@@ -112,7 +112,7 @@ nav {
   backdrop-filter: blur(10px);
 }
 
-nav a {
+.main-nav a {
   color: white;
   text-decoration: none;
   font-weight: 600;
@@ -123,7 +123,7 @@ nav a {
   transition: all 0.3s ease;
 }
 
-nav a:hover { 
+.main-nav a:hover { 
   color: #facc15; 
   transform: translateY(-2px);
   background: rgba(255, 255, 255, 0.1);
@@ -4304,39 +4304,91 @@ button:disabled::before {
 
 @media (max-width: 640px) {
   body {
-    background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 35%, #ffffff 100%);
+    background: linear-gradient(135deg, #4f46e5 0%, #9333ea 35%, #f8fafc 100%);
   }
   
-  nav {
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    gap: 8px;
-    padding: 10px 12px;
+  .main-nav {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 10px 14px;
     height: auto;
-    overflow-x: auto;
   }
   
-  nav::-webkit-scrollbar {
-    height: 4px;
+  .nav-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
   }
   
-  nav::-webkit-scrollbar-thumb {
-    background: rgba(191, 219, 254, 0.9);
+  .nav-brand {
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: 0.03em;
+  }
+  
+  .nav-logo span {
+    color: #facc15;
+  }
+  
+  .nav-toggle {
+    width: 40px;
+    height: 40px;
     border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
   }
   
-  nav a {
-    flex: 0 0 auto;
-    text-align: center;
-    padding: 8px 14px;
+  .nav-toggle span {
+    width: 18px;
+    height: 2px;
+    background: #eef2ff;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.16);
-    font-size: 0.9rem;
-    border: 1px solid rgba(191, 219, 254, 0.7);
+    transition: all 0.2s ease;
+  }
+  
+  .nav-toggle.open span:nth-child(1) {
+    transform: translateY(4px) rotate(45deg);
+  }
+  
+  .nav-toggle.open span:nth-child(2) {
+    opacity: 0;
+  }
+  
+  .nav-toggle.open span:nth-child(3) {
+    transform: translateY(-4px) rotate(-45deg);
+  }
+  
+  .nav-links {
+    margin-top: 10px;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+  
+  .nav-links.open {
+    display: flex;
+  }
+  
+  .main-nav a,
+  .main-nav .admin-btn,
+  .main-nav button {
+    width: 100%;
+    text-align: left;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.18);
+    border: 1px solid rgba(191, 219, 254, 0.4);
+    font-size: 0.95rem;
   }
   
   .content {
-    padding: 72px 12px 100px;
+    padding: 76px 12px 100px;
   }
   
   .three-col {
@@ -4402,7 +4454,7 @@ button:disabled::before {
   .chat-panel {
     width: calc(100vw - 24px);
     right: 12px;
-    height: 70vh;
+    height: 65vh;
     bottom: 90px;
   }
   

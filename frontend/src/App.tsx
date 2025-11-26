@@ -1297,6 +1297,7 @@ export default function App() {
   const [adminActionLoading, setAdminActionLoading] = useState(false);
   const [adminMessage, setAdminMessage] = useState({ type: '', text: '' });
   const [currentAdminPage, setCurrentAdminPage] = useState('dashboard'); // Default to dashboard
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
 
   const handleLogout = () => {
@@ -1564,15 +1565,32 @@ export default function App() {
   return (
     <Router>
       {token && (
-      <nav>
-        <Link to="/">Home</Link>
-        <Link to="/summarizer">Summarizer</Link>
-        <Link to="/research">Research Assistant</Link>
-        <Link to="/docs">Docs Generator</Link>
+      <nav className={`main-nav ${mobileNavOpen ? 'mobile-open' : ''}`}>
+        <div className="nav-header-row">
+          <div className="nav-brand">
+            <span className="nav-logo">Lexi<span>AI</span></span>
+          </div>
+          <button
+            type="button"
+            className={`nav-toggle ${mobileNavOpen ? 'open' : ''}`}
+            onClick={() => setMobileNavOpen(prev => !prev)}
+            aria-label="Toggle navigation"
+          >
+            <span></span>
+            <span></span>
+            <span></span>
+          </button>
+        </div>
+        <div className={`nav-links ${mobileNavOpen ? 'open' : ''}`}>
+          <Link to="/" onClick={() => setMobileNavOpen(false)}>Home</Link>
+          <Link to="/summarizer" onClick={() => setMobileNavOpen(false)}>Summarizer</Link>
+          <Link to="/research" onClick={() => setMobileNavOpen(false)}>Research Assistant</Link>
+          <Link to="/docs" onClick={() => setMobileNavOpen(false)}>Docs Generator</Link>
           {isAdmin && (
             <button 
               onClick={() => {
                 setShowAdminPanel(!showAdminPanel);
+                setMobileNavOpen(false);
                 if (!showAdminPanel) {
                   fetchAdminStats();
                   fetchUsersList();
@@ -1583,8 +1601,8 @@ export default function App() {
               {showAdminPanel ? 'Hide Admin' : 'Admin Panel'}
             </button>
           )}
-
-          <button onClick={handleLogout}>Logout</button>
+          <button onClick={() => { setMobileNavOpen(false); handleLogout(); }}>Logout</button>
+        </div>
       </nav>
       )}
 
