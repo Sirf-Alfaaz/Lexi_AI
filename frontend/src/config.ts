@@ -14,3 +14,4 @@ export const getApiUrl = (endpoint: string): string => {
   return `${baseUrl}/${cleanEndpoint}`;
 };
 
+
