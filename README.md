@@ -211,14 +211,31 @@ npm run dev
 ### Frontend (Netlify)
 See [NETLIFY_DEPLOYMENT.md](./NETLIFY_DEPLOYMENT.md) for detailed deployment instructions.
 
-### Backend (Railway/Render/Fly.io)
-1. Set `EMAIL_ENABLED=true` in production
-2. Use secure MongoDB connection with proper IP whitelisting
-3. Set strong `SECRET_KEY` for JWT tokens
-4. Configure proper CORS origins (add your Netlify frontend URL)
-5. Use environment variables for all sensitive data
+### Backend (Docker + Render/Railway)
+The backend now ships with an OCR-ready Dockerfile (`backend/Dockerfile`) that installs
+all native dependencies (Tesseract, Leptonica, etc.) required by PyMuPDF.
 
-For detailed deployment instructions, see [NETLIFY_DEPLOYMENT.md](./NETLIFY_DEPLOYMENT.md).
+Local smoke test:
+```bash
+cd backend
+docker build -t legal-backend .
+docker run --env-file .env -p 8000:8000 legal-backend
+```
+
+Render / Railway:
+1. Create a new **Docker** service and point it at `backend/Dockerfile`.
+2. Add environment variables (`MONGODB_URL`, `MONGODB_DB_NAME`, `GEMINI_API_KEY`, `EMAIL_*`, `CORS_ORIGINS`, etc.).
+3. Expose port `8000` (Render picks the `PORT` env var automatically).
+4. Update Netlify’s `VITE_API_URL` to the service URL.
+
+General hardening checklist:
+1. Set `EMAIL_ENABLED=true` in production.
+2. Use secure MongoDB connection strings with IP whitelisting.
+3. Provide a strong `SECRET_KEY` (set `SECRET_KEY` env var to override the default).
+4. Configure `CORS_ORIGINS` to include your Netlify/custom domains.
+5. Never commit `.env`; rely on platform secrets.
+
+For step-by-step deployment instructions, see [NETLIFY_DEPLOYMENT.md](./NETLIFY_DEPLOYMENT.md).
 
 ## License
 

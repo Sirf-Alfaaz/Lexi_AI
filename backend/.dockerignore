@@ -1,0 +1,20 @@
+# Python cache / virtual envs
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.venv/
+
+# Environment / secrets
+.env
+
+# Git / editor
+.git
+.gitignore
+.vscode/
+.idea/
+
+# Local files we don't need in the image
+*.log
+

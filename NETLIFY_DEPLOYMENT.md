@@ -70,36 +70,80 @@ This guide will help you deploy your **frontend** to Netlify and set up your **b
    netlify deploy --prod
    ```
 
-## Part 2: Deploy Backend (Choose One)
+## Part 2: Deploy Backend with Docker (OCR Ready)
 
-### Option 1: Railway (Recommended - Easiest)
+PyMuPDF’s OCR features require native libraries (Tesseract, Leptonica, etc.). The repo
+includes an OCR-ready Dockerfile at `backend/Dockerfile`. You can run it locally or
+deploy it on Render / Railway / Fly by choosing a **Docker** service.
 
-1. **Go to [Railway](https://railway.app)**
-2. **Create new project** → "Deploy from GitHub repo"
-3. **Select your repository**
-4. **Add environment variables:**
-   - `MONGODB_URL` - Your MongoDB connection string
-   - `MONGODB_DB_NAME` - Your database name
-   - `GEMINI_API_KEY` - Your Gemini API key
-   - `JWT_EXPIRE_MINUTES` - 60
-   - `EMAIL_ENABLED` - false (or true if you set up email)
-5. **Railway will auto-detect Python and install dependencies**
-6. **Set start command:** `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`
-7. **Get your backend URL** (e.g., `https://your-app.railway.app`)
-8. **Update Netlify environment variable** `VITE_API_URL` with this URL
+### Local smoke test
+```bash
+cd backend
+docker build -t legal-backend .
+docker run --env-file .env -p 8000:8000 legal-backend
+```
 
-### Option 2: Render
+### Option 1: Render (Docker)
 
 1. **Go to [Render](https://render.com)**
-2. **Create new Web Service**
-3. **Connect GitHub repository**
-4. **Configure:**
-   - **Name:** `ai-legal-backend`
-   - **Environment:** Python 3
-   - **Build Command:** `cd backend && pip install -r requirements.txt`
-   - **Start Command:** `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`
-5. **Add environment variables** (same as Railway)
-6. **Deploy and get URL**
+2. **New Web Service → Build & Deploy from a Git repository**
+3. When prompted, choose **Docker** and set:
+   - **Root directory:** `backend`
+   - **Dockerfile path:** `backend/Dockerfile`
+   - **Auto deploy:** optional
+4. **Add environment variables** (see list below). At minimum:
+   - `MONGODB_URL`, `MONGODB_DB_NAME`
+   - `GEMINI_API_KEY`
+   - `SECRET_KEY`
+   - `EMAIL_*` settings if email is enabled
+   - `CORS_ORIGINS` (comma-separated list including Netlify URL)
+5. Render automatically sets `PORT`. The Dockerfile already runs `uvicorn` on `$PORT`.
+6. Deploy and copy the resulting URL (e.g., `https://your-backend.onrender.com`).
+7. Update Netlify `VITE_API_URL` to this URL and redeploy the frontend.
+
+### Option 2: Railway (Docker)
+
+Railway also supports Docker services (Starter plan or higher).
+
+1. **Go to [Railway](https://railway.app)** → **New Project → Deploy from Repo**
+2. In the service settings, switch the **builder** to **Dockerfile** and set:
+   - **Root directory:** `backend`
+   - **Dockerfile:** `backend/Dockerfile`
+3. Configure the same environment variables as above.
+4. Railway exposes `PORT`; no extra command needed.
+5. Update Netlify `VITE_API_URL` after the service is live.
+
+> **Note:** If you must use a buildpack-based deployment (no Docker), you will need to
+> install Tesseract system packages manually, which is only available on paid tiers and
+> increases build times. Docker is the recommended path.
+
+### Option 3: Fly.io (Docker)
+
+1. **Install Fly CLI:**
+   ```bash
+   curl -L https://fly.io/install.sh | sh
+   ```
+
+2. **Login:**
+   ```bash
+   fly auth login
+   ```
+
+3. **Create app from backend directory:**
+   ```bash
+   cd backend
+   fly launch --dockerfile Dockerfile
+   ```
+
+4. **Set environment variables / secrets:**
+   ```bash
+   fly secrets set MONGODB_URL=... GEMINI_API_KEY=... CORS_ORIGINS=...
+   ```
+
+5. **Deploy:**
+   ```bash
+   fly deploy
+   ```
 
 ### Option 3: Fly.io
 
@@ -131,25 +175,20 @@ This guide will help you deploy your **frontend** to Netlify and set up your **b
    fly deploy
    ```
 
-### Option 4: Heroku
+### Option 4: Heroku (Container Registry)
 
-1. **Install Heroku CLI**
-2. **Login:** `heroku login`
-3. **Create app:** `heroku create your-app-name`
-4. **Set buildpacks:**
-   ```bash
-   heroku buildpacks:set heroku/python
-   ```
-5. **Create `Procfile` in backend:**
-   ```
-   web: uvicorn main:app --host 0.0.0.0 --port $PORT
-   ```
-6. **Set environment variables:**
-   ```bash
-   heroku config:set MONGODB_URL=your_url
-   # ... etc
-   ```
-7. **Deploy:** `git push heroku main`
+Heroku’s free tier is gone, but if you have access you can push the Docker image:
+
+```bash
+cd backend
+heroku login
+heroku container:login
+heroku create your-backend
+heroku container:push web --app your-backend
+heroku container:release web --app your-backend
+```
+
+Set the same environment variables via `heroku config:set ...`.
 
 ## Part 3: Update CORS in Backend
 
@@ -186,7 +225,9 @@ app.add_middleware(
 - `MONGODB_URL` - MongoDB connection string
 - `MONGODB_DB_NAME` - Database name
 - `GEMINI_API_KEY` - Google Gemini API key
+- `SECRET_KEY` - Override JWT secret
 - `JWT_EXPIRE_MINUTES` - Token expiration (default: 60)
+- `CORS_ORIGINS` - Comma-separated list of allowed origins (Netlify URL, custom domains)
 - `EMAIL_ENABLED` - Enable email (true/false)
 - `EMAIL_SERVICE` - Email service (gmail, etc.)
 - `EMAIL_FROM` - Sender email
