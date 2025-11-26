@@ -107,7 +107,6 @@ function ChatTab() {
   const detectMobileDevice = () =>
     typeof navigator !== "undefined" &&
     /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
-  const [isMobileDevice] = useState<boolean>(detectMobileDevice);
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<Array<{text: string, isUser: boolean}>>([
