@@ -809,6 +809,17 @@ button:disabled::before {
   justify-content: flex-end;
 }
 
+.voice-support-hint {
+  font-size: 0.75rem;
+  color: #dc2626;
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  padding: 8px 12px;
+  border-radius: 10px;
+  margin: 8px 0;
+  text-align: center;
+}
+
 .voice-button {
   background: linear-gradient(135deg, #8b5cf6, #a855f7);
   color: white;
@@ -4223,6 +4234,71 @@ button:disabled::before {
     border-bottom-left-radius: 8px;
     border-bottom-right-radius: 8px;
     border-bottom: none;
+  }
+}
+
+/* Global responsive adjustments */
+@media (max-width: 1024px) {
+  .content {
+    height: auto;
+    min-height: 100vh;
+  }
+  .three-col {
+    grid-template-columns: 1fr;
+    height: auto;
+    padding: 16px;
+    gap: 16px;
+  }
+  .document-viewer {
+    min-height: 400px;
+  }
+  .document-actions {
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 8px;
+  }
+  .action-btn {
+    flex: 1 1 120px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 768px) {
+  nav {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    height: auto;
+    padding: 0.75rem;
+  }
+  .chat-panel {
+    width: calc(100vw - 32px);
+    right: 16px;
+  }
+  .chat-button {
+    width: 200px;
+  }
+  .document-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .document-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 600px) {
+  .document-actions {
+    flex-direction: column;
+  }
+  .action-btn {
+    width: 100%;
+  }
+  .voice-language-selector {
+    flex-wrap: wrap;
+  }
+  .voice-buttons {
+    justify-content: center;
   }
 }
 
