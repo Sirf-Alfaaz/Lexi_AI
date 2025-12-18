@@ -154,20 +154,20 @@ async def startup_event():
                     timeout=10.0
                 )
                 logger.info("✅ MongoDB connection established")
-                
-                # Create indexes
+
+                # Create indexes (non-blocking for startup)
                 try:
                     await create_indexes()
                 except Exception as idx_error:
                     logger.warning(f"Index creation failed (non-critical): {idx_error}")
-                
-                # Clean up expired OTPs
+
+                # Clean up expired OTPs (non-blocking for startup)
                 try:
                     logger.info("Cleaning up expired OTPs...")
                     await cleanup_expired_otps()
                 except Exception as cleanup_error:
                     logger.warning(f"OTP cleanup failed (non-critical): {cleanup_error}")
-                    
+
             except asyncio.TimeoutError:
                 logger.error("❌ MongoDB connection timeout!")
                 logger.error("=" * 60)
@@ -613,11 +613,11 @@ async def debug_schema():
         user_count = await db.users.count_documents({})
         otp_count = await db.otps.count_documents({})
         search_count = await db.search_history.count_documents({})
-        
+            
         # Get indexes
         user_indexes = await db.users.list_indexes().to_list(length=100)
         otp_indexes = await db.otps.list_indexes().to_list(length=100)
-        
+
         return {
             "collections": {
                 "users": {

@@ -511,8 +511,9 @@ button:disabled::before {
   position: fixed;
   bottom: 90px;
   right: 16px;
-  width: 360px;
-  height: 520px;
+  width: 320px;
+  height: min(450px, 70vh);
+  min-height: 0;
   background: rgba(255, 255, 255, 0.95);
   border-radius: 20px;
   box-shadow: var(--chat-shadow);
@@ -584,6 +585,7 @@ button:disabled::before {
 
 .chat-messages {
   flex: 1;
+  min-height: 0;
   padding: 18px;
   overflow-y: auto;
   background: rgba(248, 250, 252, 0.8);
@@ -612,7 +614,7 @@ button:disabled::before {
   display: flex;
   gap: 10px;
   margin-bottom: 14px;
-  animation: slideIn 0.3s ease-out both;
+  animation: slideInChat 0.3s ease-out both;
 }
 
 .user-message {
@@ -1004,7 +1006,7 @@ button:disabled::before {
 }
 
 /* Animations */
-@keyframes slideIn {
+@keyframes slideInChat {
   from {
     opacity: 0;
     transform: translateY(20px);
@@ -4393,11 +4395,28 @@ button:disabled::before {
     padding-bottom: 24px;
   }
   .chat-panel {
-    width: calc(100vw - 32px);
+    width: 280px;
+    max-width: 70vw;
+    left: auto;
     right: 16px;
   }
+  .chat-tab {
+    left: auto;
+    right: 16px;
+    transform: none;
+    width: auto;
+    max-width: none;
+  }
   .chat-button {
-    width: 70%;
+    width: auto;
+    min-width: 140px;
+    padding: 8px 14px;
+    font-size: 0.8rem;
+  }
+  .voice-lang-btn {
+    padding: 5px 10px;
+    font-size: 0.7rem;
+    min-width: 65px;
   }
   .document-header {
     flex-direction: column;
@@ -4424,24 +4443,88 @@ button:disabled::before {
     justify-content: center;
   }
   .chat-tab {
-    left: 0;
-    right: 0;
-    bottom: 88px; /* above bottom nav, but not too high */
+    left: auto;
+    right: 12px;
+    transform: none;
+    bottom: 65px; /* just above bottom nav */
     display: flex;
-    justify-content: center;
+    justify-content: flex-end;
+    width: auto;
+    max-width: none;
   }
   .chat-button {
-    width: 78%;
-    padding: 8px 12px;
+    width: auto;
+    min-width: 120px;
+    padding: 8px 14px;
+    font-size: 0.75rem;
+    gap: 6px;
+    border-radius: 25px;
+  }
+  .chat-icon {
+    font-size: 0.9rem;
+  }
+  .chat-text {
+    font-size: 0.75rem;
+  }
+  .chat-status {
+    font-size: 0.6rem;
+    padding: 2px 6px;
+  }
+  .voice-lang-btn {
+    padding: 4px 8px;
+    font-size: 0.65rem;
+    min-width: 55px;
+    border-radius: 14px;
+  }
+  .voice-language-selector {
+    gap: 4px;
   }
   .chat-panel {
-    width: calc(100vw - 32px);
-    right: 16px;
-    bottom: 104px; /* leave more space for nav + button */
-    height: 46vh;
+    width: 240px;
+    max-width: 60vw;
+    left: auto;
+    right: 12px;
+    bottom: 110px; /* above button */
+    height: min(320px, 50vh);
+    min-height: 0;
+  }
+  .chat-header {
+    padding: 10px 12px;
+  }
+  .chat-title {
+    font-size: 0.8rem;
+  }
+  .chat-subtitle {
+    font-size: 0.6rem;
   }
   .chat-messages {
-    padding: 10px;
+    padding: 8px;
+    min-height: 0;
+    flex: 1;
+    overflow-y: auto;
+  }
+  .chat-message {
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .message-content {
+    max-width: 180px;
+    padding: 8px 10px;
+    font-size: 0.75rem;
+    line-height: 1.35;
+    border-radius: 12px;
+  }
+  .message-avatar {
+    width: 24px;
+    height: 24px;
+    font-size: 0.7rem;
+  }
+  .chat-input {
+    padding: 8px;
+  }
+  .chat-input-field {
+    padding: 6px 10px;
+    font-size: 0.75rem;
   }
 }
 }

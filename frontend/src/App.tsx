@@ -1533,21 +1533,21 @@ export default function App() {
               <Link to="/summarizer" onClick={() => setIsMobileNavOpen(false)}>Summarizer</Link>
               <Link to="/research" onClick={() => setIsMobileNavOpen(false)}>Research Assistant</Link>
               <Link to="/docs" onClick={() => setIsMobileNavOpen(false)}>Docs Generator</Link>
-              {isAdmin && (
-                <button 
-                  onClick={() => {
-                    setShowAdminPanel(!showAdminPanel);
+          {isAdmin && (
+            <button 
+              onClick={() => {
+                setShowAdminPanel(!showAdminPanel);
                     setIsMobileNavOpen(false);
-                    if (!showAdminPanel) {
-                      fetchAdminStats();
-                      fetchUsersList();
-                    }
-                  }}
-                  className="admin-btn"
-                >
-                  {showAdminPanel ? 'Hide Admin' : 'Admin Panel'}
-                </button>
-              )}
+                if (!showAdminPanel) {
+                  fetchAdminStats();
+                  fetchUsersList();
+                }
+              }}
+              className="admin-btn"
+            >
+              {showAdminPanel ? 'Hide Admin' : 'Admin Panel'}
+            </button>
+          )}
               <button onClick={() => { setIsMobileNavOpen(false); handleLogout(); }}>
                 Logout
               </button>
@@ -1571,7 +1571,7 @@ export default function App() {
               <span className="bottom-nav-icon">📄</span>
               <span className="bottom-nav-label">Docs</span>
             </Link>
-          </nav>
+      </nav>
         </>
       )}
 
