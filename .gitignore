@@ -79,3 +79,6 @@ htmlcov/
 *.temp
 .cache/
 
+# Debug files
+backend/bhulekh_debug_strict.html
+backend/bhulekh_result.png

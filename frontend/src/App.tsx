@@ -1,6 +1,7 @@
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import "./App.css"; // Using external CSS
 import { useState, useRef, useEffect } from "react";
+import LandAssistant from "./pages/LandAssistant";
 
 // TypeScript declarations for Web Speech API
 declare global {
@@ -8,6 +9,19 @@ declare global {
     SpeechRecognition: any;
     webkitSpeechRecognition: any;
   }
+}
+
+/** Hides global chrome (nav, chat, admin overlay) while Land Assistant is fullscreen. */
+function ShowUnlessLandAssistant({
+  token,
+  children,
+}: {
+  token: string | null;
+  children: React.ReactNode;
+}) {
+  const location = useLocation();
+  if (!token || location.pathname === "/land-assistant") return null;
+  return <>{children}</>;
 }
 
 // Optimized Resend Button Component
@@ -115,10 +129,12 @@ function ChatTab() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [autoSpeak, setAutoSpeak] = useState(true); // New state for auto-speak toggle
   const [voiceLanguage, setVoiceLanguage] = useState<'en' | 'hi'>('en');
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
+  const [voicesList, setVoicesList] = useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoice, setSelectedVoice] = useState<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -127,24 +143,6 @@ function ChatTab() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  useEffect(() => {
-    if (autoSpeak) {
-      speakLastMessage();
-    } else {
-      stopSpeaking();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoSpeak]);
-
-  useEffect(() => {
-    if (!autoSpeak) {
-      stopSpeaking();
-      return;
-    }
-    speakLastMessage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [voiceLanguage]);
 
   const toggleChat = () => {
     if (isOpen) {
@@ -202,37 +200,31 @@ function ChatTab() {
   // Initialize speech synthesis
   useEffect(() => {
     if ('speechSynthesis' in window) {
-      const synth = window.speechSynthesis;
-      speechRef.current = null;
+      // Cache available voices (may be empty initially)
+      voicesRef.current = speechSynthesis.getVoices() || [];
 
-      const handleVoicesChanged = () => {
-        const voices = synth.getVoices();
-        setAvailableVoices(voices);
-      };
-
-      // Populate voices immediately (on some browsers this returns empty until event fires)
-      handleVoicesChanged();
-
-      if (typeof synth.addEventListener === "function") {
-        synth.addEventListener("voiceschanged", handleVoicesChanged);
-        return () => {
-          synth.removeEventListener("voiceschanged", handleVoicesChanged);
-        };
-      } else {
-        const originalHandler = synth.onvoiceschanged;
-        const voicesChangedHandler = () => {
-          handleVoicesChanged();
-          if (typeof originalHandler === "function") {
-            originalHandler.call(synth, new Event("voiceschanged"));
-          }
-        };
-        synth.onvoiceschanged = voicesChangedHandler;
-        return () => {
-          if (synth.onvoiceschanged === voicesChangedHandler) {
-            synth.onvoiceschanged = originalHandler ?? null;
-          }
+      // Watch for voiceschanged to populate voices when they become available
+      if (typeof speechSynthesis.onvoiceschanged !== 'undefined') {
+        speechSynthesis.onvoiceschanged = () => {
+          const vs = speechSynthesis.getVoices() || [];
+          voicesRef.current = vs;
+          setVoicesList(vs);
+          console.log('Speech voices updated:', vs.map(v => v.lang + ' / ' + v.name));
         };
       }
+
+      // Also populate immediately if voices are already available
+      const initialVoices = speechSynthesis.getVoices() || [];
+      if (initialVoices.length) {
+        voicesRef.current = initialVoices;
+        setVoicesList(initialVoices);
+      }
+
+      // Keep a reusable utterance only for defaults, but we will create per-utterance objects when speaking
+      speechRef.current = new SpeechSynthesisUtterance();
+      speechRef.current.rate = 0.9;
+      speechRef.current.pitch = 1;
+      speechRef.current.volume = 0.8;
     }
   }, []);
 
@@ -251,61 +243,68 @@ function ChatTab() {
   };
 
   const speakText = (text: string) => {
-    if (!autoSpeak || !('speechSynthesis' in window)) return; // Don't speak if auto-speak is disabled or unsupported
-
-    const synth = window.speechSynthesis;
-    synth.cancel(); // Stop any ongoing speech before starting new one
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    speechRef.current = utterance;
-    utterance.lang = voiceLanguage === 'en' ? 'en-US' : 'hi-IN';
-
-    // Get available voices and set appropriate voice
-    const voices = availableVoices.length ? availableVoices : synth.getVoices();
-    let preferredVoice: SpeechSynthesisVoice | undefined;
+    if (!autoSpeak) return; // Don't speak if auto-speak is disabled
     
-    if (voiceLanguage === 'en') {
-      // For English, prefer US English voices
-      preferredVoice = voices.find(voice => 
-        voice.lang.toLowerCase().startsWith('en-us') && voice.name.toLowerCase().includes('us')
-      ) || voices.find(voice => voice.lang.toLowerCase().startsWith('en'));
-    } else {
-      // For Hindi, prefer Hindi voices, fallback to Indian English
-      preferredVoice = voices.find(voice => 
-        voice.lang.toLowerCase().startsWith('hi-in') && voice.name.toLowerCase().includes('hindi')
-      ) || voices.find(voice => 
-        voice.lang.toLowerCase().startsWith('hi-in')
-      ) || voices.find(voice => 
-        voice.lang.toLowerCase().startsWith('en-in') && voice.name.toLowerCase().includes('india')
-      ) || voices.find(voice => voice.lang.toLowerCase().startsWith('en-in'));
+    if ('speechSynthesis' in window) {
+      // Create a fresh utterance per speak call to avoid stale voice/lang issues
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = voiceLanguage === 'en' ? 'en-US' : 'hi-IN';
+
+      // Choose preferred voice from cached voices (if any)
+      const voices = voicesRef.current.length ? voicesRef.current : speechSynthesis.getVoices();
+      let preferredVoice: SpeechSynthesisVoice | undefined;
+
+      if (voiceLanguage === 'en') {
+        preferredVoice = voices.find(v => v.lang && v.lang.startsWith('en-US'))
+          || voices.find(v => v.lang && v.lang.startsWith('en'));
+      } else {
+        preferredVoice = voices.find(v => v.lang && v.lang.startsWith('hi-IN') && v.name.toLowerCase().includes('hindi'))
+          || voices.find(v => v.lang && v.lang.startsWith('hi-IN'))
+          || voices.find(v => v.lang && v.lang.startsWith('en-IN'));
+      }
+
+      // If user selected a voice explicitly, prefer that
+      if (selectedVoice) {
+        const userVoice = voices.find(v => v.name === selectedVoice) || voices.find(v => v.voiceURI === selectedVoice);
+        if (userVoice) {
+          utter.voice = userVoice;
+          console.log(`🎤 Using user-selected voice: ${userVoice.name} (${userVoice.lang})`);
+        } else if (preferredVoice) {
+          utter.voice = preferredVoice;
+          console.log(`🎤 Using preferred voice: ${preferredVoice.name} (${preferredVoice.lang}) for ${voiceLanguage}`);
+        } else {
+          console.log(`⚠️ Selected voice not found, using default`);
+        }
+      } else if (preferredVoice) {
+        utter.voice = preferredVoice;
+        console.log(`🎤 Using voice: ${preferredVoice.name} (${preferredVoice.lang}) for ${voiceLanguage}`);
+      } else {
+        console.log(`⚠️ No preferred voice found for ${voiceLanguage}, using default`);
+      }
+
+      // Tweak rate/pitch for Hindi clarity
+      if (voiceLanguage === 'hi') {
+        utter.rate = 0.85;
+        utter.pitch = 1.1;
+        utter.volume = 0.95;
+      } else {
+        utter.rate = 1.0;
+        utter.pitch = 1.0;
+        utter.volume = 0.9;
+      }
+
+      utter.onstart = () => setIsSpeaking(true);
+      utter.onend = () => setIsSpeaking(false);
+      utter.onerror = () => setIsSpeaking(false);
+
+      // Cancel any ongoing speech to avoid overlap, then speak
+      try {
+        if (speechSynthesis.speaking) speechSynthesis.cancel();
+      } catch (e) {
+        /* ignore */
+      }
+      speechSynthesis.speak(utter);
     }
-    
-    if (preferredVoice) {
-      utterance.voice = preferredVoice;
-      console.log(`🎤 Using voice: ${preferredVoice.name} (${preferredVoice.lang}) for ${voiceLanguage}`);
-    } else if (voices.length > 0) {
-      utterance.voice = voices[0];
-      console.log(`⚠️ Using fallback voice: ${voices[0].name} (${voices[0].lang})`);
-    } else {
-      console.warn("No speech synthesis voices available. Browser may not support TTS.");
-    }
-    
-    // Set speech rate and pitch for better Hindi pronunciation
-    if (voiceLanguage === 'hi') {
-      utterance.rate = 0.85; // Slightly slower for Hindi for better clarity
-      utterance.pitch = 1.1; // Slightly higher pitch for Hindi
-      utterance.volume = 0.9; // Slightly louder for Hindi
-    } else {
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
-      utterance.volume = 0.85;
-    }
-    
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-
-    synth.speak(utterance);
   };
 
   const speakLastMessage = () => {
@@ -319,7 +318,6 @@ function ChatTab() {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
-      speechRef.current = null;
     }
   };
 
@@ -340,7 +338,7 @@ function ChatTab() {
       form.append("text", question);
       form.append("language", voiceLanguage); // Use voice language for AI response
 
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/process`, {
+      const res = await fetch("http://127.0.0.1:8000/process", {
         method: "POST",
         body: form,
       });
@@ -482,6 +480,37 @@ function ChatTab() {
                     title={isSpeaking ? "Stop Speaking" : "Speak Last Message"}
                   >
                     {isSpeaking ? '⏹️' : '▶️'}
+                  </button>
+                </div>
+                <div className="voice-select-wrapper" style={{display: 'flex', gap: 8, alignItems: 'center'}}>
+                  <select
+                    value={selectedVoice || ''}
+                    onChange={(e) => setSelectedVoice(e.target.value || null)}
+                    className="voice-select"
+                    title="Select TTS voice"
+                  >
+                    <option value="">(Auto select best voice)</option>
+                    {voicesList.map((v, i) => (
+                      <option key={i} value={v.name}>{`${v.name} — ${v.lang}`}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="voice-button"
+                    onClick={() => {
+                      const vs = speechSynthesis.getVoices() || [];
+                      voicesRef.current = vs;
+                      setVoicesList(vs);
+                      // If no selection yet, try to auto-select best voice for current language
+                      if (!selectedVoice && vs.length) {
+                        let pref = vs.find(v => (voiceLanguage === 'hi' && v.lang && v.lang.startsWith('hi')));
+                        if (!pref && voiceLanguage === 'en') pref = vs.find(v => v.lang && v.lang.startsWith('en-US')) || vs.find(v => v.lang && v.lang.startsWith('en'));
+                        if (pref) setSelectedVoice(pref.name);
+                      }
+                    }}
+                    title="Refresh voices"
+                  >
+                    🔄
                   </button>
                 </div>
               </div>
@@ -853,7 +882,7 @@ function DocumentViewer({ content, action, stampValue }: { content: string; acti
         formData.append('stamp_value', stampValue);
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/generate-pdf`, {
+      const response = await fetch('http://127.0.0.1:8000/generate-pdf', {
         method: 'POST',
         body: formData,
       });
@@ -1022,7 +1051,7 @@ function Processor({ defaultAction, language, setLanguage }: { defaultAction: st
         textLength: text.trim().length
       });
 
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/process`, {
+      const res = await fetch("http://127.0.0.1:8000/process", {
         method: "POST",
         body: form,
       });
@@ -1239,11 +1268,10 @@ export default function App() {
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState<any>(null);
   const [adminDeleteConfirmation, setAdminDeleteConfirmation] = useState('');
-  const [newUserData, setNewUserData] = useState({ username: '', email: '', password: '', isAdmin: false });
+  const [newUserData, setNewUserData] = useState({ username: '', password: '', isAdmin: false });
   const [adminActionLoading, setAdminActionLoading] = useState(false);
   const [adminMessage, setAdminMessage] = useState({ type: '', text: '' });
   const [currentAdminPage, setCurrentAdminPage] = useState('dashboard'); // Default to dashboard
-  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
 
   const handleLogout = () => {
@@ -1255,7 +1283,7 @@ export default function App() {
 
   const fetchAdminStats = async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/admin/stats`, {
+      const res = await fetch("http://127.0.0.1:8000/admin/stats", {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -1271,7 +1299,7 @@ export default function App() {
 
   const fetchUsersList = async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/admin/users`, {
+      const res = await fetch("http://127.0.0.1:8000/admin/users", {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -1287,39 +1315,39 @@ export default function App() {
 
   // Add new user function
   const addNewUser = async () => {
-    if (!newUserData.username || !newUserData.email || !newUserData.password) {
-      setAdminMessage({ type: 'error', text: 'Username, email, and password are required' });
+    if (!newUserData.username || !newUserData.password) {
+      setAdminMessage({ type: 'error', text: 'Username and password are required' });
       return;
     }
 
     setAdminActionLoading(true);
     try {
-      // Use the new admin endpoint that accepts JSON
-      const endpoint = `${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/admin/users/create`;
+      const formData = new FormData();
+      formData.append('username', newUserData.username);
+      formData.append('password', newUserData.password);
+
+      let endpoint = "http://127.0.0.1:8000/auth/register";
+      if (newUserData.isAdmin) {
+        endpoint = "http://127.0.0.1:8000/admin/users/create-admin";
+      }
 
       const res = await fetch(endpoint, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
+          "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({
-          username: newUserData.username,
-          email: newUserData.email,
-          password: newUserData.password,
-          is_admin: newUserData.isAdmin
-        })
+        body: formData
       });
 
       if (res.ok) {
         await res.json();
         setAdminMessage({ type: 'success', text: `User '${newUserData.username}' created successfully!` });
-        setNewUserData({ username: '', email: '', password: '', isAdmin: false });
+        setNewUserData({ username: '', password: '', isAdmin: false });
         setShowAddUserModal(false);
         fetchUsersList(); // Refresh the list
       } else {
         const errorData = await res.json();
-        setAdminMessage({ type: 'error', text: errorData.detail || errorData.message || 'Failed to create user' });
+        setAdminMessage({ type: 'error', text: errorData.detail || 'Failed to create user' });
       }
     } catch (error) {
       setAdminMessage({ type: 'error', text: 'Error creating user' });
@@ -1333,7 +1361,7 @@ export default function App() {
     setAdminActionLoading(true);
     try {
       // Use simpler endpoint structure
-      const endpoint = `${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/admin/users/${user.id}/toggle-admin`;
+      const endpoint = `http://127.0.0.1:8000/admin/users/${user.id}/toggle-admin`;
       
       const res = await fetch(endpoint, {
         method: "PUT",
@@ -1387,7 +1415,7 @@ export default function App() {
     setAdminActionLoading(true);
     try {
       // Build URL with admin confirmation if needed
-      let url = `${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/admin/users/${userId}`;
+      let url = `http://127.0.0.1:8000/admin/users/${userId}`;
       if (userToDelete && userToDelete.is_admin) {
         url += `?admin_confirmation=${encodeURIComponent(adminDeleteConfirmation)}`;
       }
@@ -1472,7 +1500,7 @@ export default function App() {
 
   const checkAdminStatus = async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/admin/stats`, {
+      const res = await fetch("http://127.0.0.1:8000/admin/stats", {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -1510,34 +1538,17 @@ export default function App() {
 
   return (
     <Router>
-      {token && (
-        <>
-          <nav className="top-nav">
-            <div className="nav-left">
-              <button
-                type="button"
-                className={`hamburger ${isMobileNavOpen ? 'open' : ''}`}
-                onClick={() => setIsMobileNavOpen(prev => !prev)}
-                aria-label="Toggle navigation"
-              >
-                <span></span>
-                <span></span>
-                <span></span>
-              </button>
-              <span className="nav-title">
-                AI Legal Companion <span className="nav-title-icon">🚀</span>
-              </span>
-            </div>
-            <div className={`nav-links ${isMobileNavOpen ? 'open' : ''}`}>
-              <Link to="/" onClick={() => setIsMobileNavOpen(false)}>Home</Link>
-              <Link to="/summarizer" onClick={() => setIsMobileNavOpen(false)}>Summarizer</Link>
-              <Link to="/research" onClick={() => setIsMobileNavOpen(false)}>Research Assistant</Link>
-              <Link to="/docs" onClick={() => setIsMobileNavOpen(false)}>Docs Generator</Link>
+      <ShowUnlessLandAssistant token={token}>
+      <nav>
+        <Link to="/">Home</Link>
+        <Link to="/summarizer">Summarizer</Link>
+        <Link to="/research">Research Assistant</Link>
+        <Link to="/docs">Docs Generator</Link>
+        <Link to="/land-assistant">Land Dispute Assistant</Link>
           {isAdmin && (
             <button 
               onClick={() => {
                 setShowAdminPanel(!showAdminPanel);
-                    setIsMobileNavOpen(false);
                 if (!showAdminPanel) {
                   fetchAdminStats();
                   fetchUsersList();
@@ -1548,32 +1559,10 @@ export default function App() {
               {showAdminPanel ? 'Hide Admin' : 'Admin Panel'}
             </button>
           )}
-              <button onClick={() => { setIsMobileNavOpen(false); handleLogout(); }}>
-                Logout
-              </button>
-            </div>
-          </nav>
 
-          <nav className="bottom-nav">
-            <Link to="/" className="bottom-nav-item">
-              <span className="bottom-nav-icon">🏠</span>
-              <span className="bottom-nav-label">Home</span>
-            </Link>
-            <Link to="/summarizer" className="bottom-nav-item">
-              <span className="bottom-nav-icon">📝</span>
-              <span className="bottom-nav-label">Summarizer</span>
-            </Link>
-            <Link to="/research" className="bottom-nav-item">
-              <span className="bottom-nav-icon">📚</span>
-              <span className="bottom-nav-label">Research</span>
-            </Link>
-            <Link to="/docs" className="bottom-nav-item">
-              <span className="bottom-nav-icon">📄</span>
-              <span className="bottom-nav-label">Docs</span>
-            </Link>
+          <button onClick={handleLogout}>Logout</button>
       </nav>
-        </>
-      )}
+      </ShowUnlessLandAssistant>
 
       <Routes>
         <Route path="/login" element={!token ? <Login setToken={setToken} setIsAdmin={setIsAdmin} /> : <Home language={language} setLanguage={setLanguage} />} />
@@ -1583,11 +1572,15 @@ export default function App() {
         <Route path="/summarizer" element={<ProtectedRoute><Summarizer /></ProtectedRoute>} />
         <Route path="/research" element={<ProtectedRoute><Research /></ProtectedRoute>} />
         <Route path="/docs" element={<ProtectedRoute><Docs /></ProtectedRoute>} />
+        <Route path="/land-assistant" element={<ProtectedRoute><LandAssistant /></ProtectedRoute>} />
         <Route path="*" element={!token ? <Login setToken={setToken} setIsAdmin={setIsAdmin} /> : <Home language={language} setLanguage={setLanguage} />} />
       </Routes>
 
-      {token && <ChatTab />}
+      <ShowUnlessLandAssistant token={token}>
+      <ChatTab />
+      </ShowUnlessLandAssistant>
       
+      <ShowUnlessLandAssistant token={token}>
       {showAdminPanel && isAdmin && (
         <div className="admin-panel">
           <div className="admin-header">
@@ -2032,16 +2025,6 @@ export default function App() {
                 />
               </div>
               <div className="form-group">
-                <label>Email:</label>
-                <input
-                  type="email"
-                  value={newUserData.email}
-                  onChange={(e) => setNewUserData({...newUserData, email: e.target.value})}
-                  placeholder="Enter email address"
-                  disabled={adminActionLoading}
-                />
-              </div>
-              <div className="form-group">
                 <label>Password:</label>
                 <input
                   type="password"
@@ -2148,6 +2131,7 @@ export default function App() {
           </div>
         </div>
       )}
+      </ShowUnlessLandAssistant>
     </Router>
   );
 }
@@ -2168,7 +2152,7 @@ function Login({ setToken, setIsAdmin }: { setToken: (t: string) => void; setIsA
 
   const checkAdminStatus = async (token: string) => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/admin/stats`, {
+      const res = await fetch("http://127.0.0.1:8000/admin/stats", {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -2201,7 +2185,7 @@ function Login({ setToken, setIsAdmin }: { setToken: (t: string) => void; setIsA
       setLoading(true);
       setError("");
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/auth/send-otp`, {
+        const res = await fetch("http://127.0.0.1:8000/auth/send-otp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: forgotEmail })
@@ -2231,7 +2215,7 @@ function Login({ setToken, setIsAdmin }: { setToken: (t: string) => void; setIsA
       setLoading(true);
       setError("");
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/auth/verify-otp`, {
+        const res = await fetch("http://127.0.0.1:8000/auth/verify-otp", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: forgotEmail, otp_code: forgotOtp })
@@ -2260,7 +2244,7 @@ function Login({ setToken, setIsAdmin }: { setToken: (t: string) => void; setIsA
     setError("");
     
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/auth/resend-otp`, {
+      const res = await fetch("http://127.0.0.1:8000/auth/resend-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: forgotEmail })
@@ -2292,7 +2276,7 @@ function Login({ setToken, setIsAdmin }: { setToken: (t: string) => void; setIsA
     try {
       console.log("Attempting login for user:", username);
       
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/auth/login`, {
+      const res = await fetch("http://127.0.0.1:8000/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password })
@@ -2573,7 +2557,7 @@ function Signup() {
     setError("");
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/auth/send-otp`, {
+      const res = await fetch("http://127.0.0.1:8000/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email })
@@ -2609,7 +2593,7 @@ function Signup() {
     setError("");
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/auth/verify-otp`, {
+      const res = await fetch("http://127.0.0.1:8000/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp_code: otpCode })
@@ -2623,7 +2607,7 @@ function Signup() {
       // After OTP verification, automatically create the account
       setSuccess("Email verified successfully! Creating your account...");
       
-      const registerRes = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/auth/register`, {
+      const registerRes = await fetch("http://127.0.0.1:8000/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, email, password })
@@ -2652,7 +2636,7 @@ function Signup() {
     setError("");
     
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/auth/resend-otp`, {
+      const res = await fetch("http://127.0.0.1:8000/auth/resend-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email })
@@ -2891,7 +2875,7 @@ function OTPTestPage() {
     setMessage("");
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/auth/send-otp`, {
+      const res = await fetch("http://127.0.0.1:8000/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email })
@@ -2923,7 +2907,7 @@ function OTPTestPage() {
     setMessage("");
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/auth/verify-otp`, {
+      const res = await fetch("http://127.0.0.1:8000/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp_code: otpCode })

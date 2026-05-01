@@ -10,6 +10,7 @@ RUN apt-get update && \
         build-essential \
         g++ \
         tesseract-ocr \
+        tesseract-ocr-hin \
         libtesseract-dev \
         libleptonica-dev \
         libjpeg-dev \
@@ -31,6 +32,8 @@ COPY . .
 
 EXPOSE 8000
 ENV PORT=8000
+# Devanagari (UP Bhulekh, Khatauni) + English headers/numbers; override with TESSERACT_LANG
+ENV TESSERACT_LANG=hin+eng
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 

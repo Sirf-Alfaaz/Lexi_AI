@@ -1,0 +1,38 @@
+{
+  "v1|Bulandshahar|Anupshahar|Madhogarh|khasra|113||वर्तमान फसली वर्ष": {
+    "lookup": {
+      "owner": "अक्षय पोसवाल ना०आ० 10 साल | गौरव सिह | प्रशान्त सिह ना०आ० 15 साल | सत्यवीरसिह | 1 | 0.0273 | 0.0274 | 0.0820",
+      "khasra": "113",
+      "area": "0.1640",
+      "search_mode": "khasra",
+      "pdf_url": ""
+    },
+    "official_pdf_parsed": null,
+    "cached_at": 1777637487.2018485,
+    "key_version": 1
+  },
+  "v1|Bulandshahar (बुलन्द शहर)|Anupshahr (अनूपशहर)|Bhaisakhur (भैसाखुर) - 121101|khasra|112||वर्तमान फसली वर्ष": {
+    "lookup": {
+      "owner": "आबादी | 1 | 0.0510",
+      "khasra": "112",
+      "area": "0.0510",
+      "search_mode": "khasra",
+      "pdf_url": ""
+    },
+    "official_pdf_parsed": null,
+    "cached_at": 1777644459.0737076,
+    "key_version": 1
+  },
+  "v1|Bulandshahar (बुलन्द शहर)|Anupshahr (अनूपशहर)|Madhogarh (माधोगढ) - 121032|khasra|113||वर्तमान फसली वर्ष": {
+    "lookup": {
+      "owner": "अक्षय पोसवाल ना०आ० 10 साल | गौरव सिह | प्रशान्त सिह ना०आ० 15 साल | सत्यवीरसिह | 1 | 0.0273 | 0.0274 | 0.0820",
+      "khasra": "113",
+      "area": "0.1640",
+      "search_mode": "khasra",
+      "pdf_url": ""
+    },
+    "official_pdf_parsed": null,
+    "cached_at": 1777660814.0760572,
+    "key_version": 1
+  }
+}

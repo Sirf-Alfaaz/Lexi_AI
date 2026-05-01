@@ -5,8 +5,9 @@ import logging
 import random
 import string
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
-from fastapi import FastAPI, HTTPException, File, UploadFile, Form, Depends, Header, Request
+from fastapi import FastAPI, HTTPException, File, UploadFile, Form, Depends, Header, Request, Query
 from fastapi.responses import Response, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
@@ -22,7 +23,8 @@ from reportlab.lib.enums import TA_JUSTIFY, TA_CENTER, TA_LEFT
 from reportlab.lib.colors import black, white, grey
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from typing import Optional, cast, Union
+from typing import Optional, cast, Union, Dict, Any
+import httpx
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
 from pymongo import ASCENDING, DESCENDING
 from pymongo.errors import DuplicateKeyError
@@ -34,17 +36,86 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from urllib.parse import quote_plus
+from pathlib import Path
+
+# Land module services
+from services.ocr_service import extract_text_from_pdf_bytes
+from services.gemini_analysis import analyze_land_document
+from services.geocode_service import geocode_village_district
+from services.name_display import format_bilingual_name
+from services.document_ocr_pipeline import extract_registry_fields_from_document
+from services.bhulekh import (
+    BhulekhCaptchaError,
+    BhulekhNavigationError,
+    BhulekhNotFoundError,
+    BhulekhTimeoutError,
+    UPBhulekhScraper,
+)
+from database.land_records_collection import (
+    upsert_land_record,
+    find_land_record,
+    LAND_COLLECTION_NAME,
+)
+from routers.ocr_document import router as ocr_document_router
+from routers.forgery_detection import router as forgery_detection_router
+from routers.land_intel import router as land_intel_router
 
 # -----------------------------
 # Setup logging
 # -----------------------------
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+bhulekh_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="bhulekh-upload")
+
+
+def _normalize_for_match(value: Optional[str]) -> str:
+    return " ".join(str(value or "").strip().lower().split())
+
+
+def _compute_bhulekh_match_score(
+    *,
+    user_owner: str,
+    user_khasra: str,
+    user_area: str,
+    bhulekh_owner: str,
+    bhulekh_khasra: str,
+    bhulekh_area: str,
+) -> Dict[str, Any]:
+    weights = {"owner": 40, "khasra": 40, "area": 20}
+
+    uo, uk, ua = _normalize_for_match(user_owner), _normalize_for_match(user_khasra), _normalize_for_match(user_area)
+    bo, bk, ba = _normalize_for_match(bhulekh_owner), _normalize_for_match(bhulekh_khasra), _normalize_for_match(bhulekh_area)
+
+    owner_match = bool(uo and bo and (uo == bo or uo in bo or bo in uo))
+    khasra_match = bool(uk and bk and (uk == bk or uk in bk or bk in uk))
+    area_match = bool(ua and ba and (ua == ba or ua in ba or ba in ua))
+
+    points = {
+        "owner": weights["owner"] if owner_match else 0,
+        "khasra": weights["khasra"] if khasra_match else 0,
+        "area": weights["area"] if area_match else 0,
+    }
+    total = points["owner"] + points["khasra"] + points["area"]
+    status = "strong_match" if total >= 80 else ("partial_match" if total >= 40 else "weak_match")
+
+    return {
+        "status": status,
+        "total_points": total,
+        "max_points": 100,
+        "field_points": points,
+        "field_match": {
+            "owner": owner_match,
+            "khasra": khasra_match,
+            "area": area_match,
+        },
+    }
 
 # -----------------------------
 # Load environment variables
 # -----------------------------
-load_dotenv()
+# Always load backend/.env even when cwd is repo root (e.g. uvicorn backend.main:app).
+_BACKEND_DIR = Path(__file__).resolve().parent
+load_dotenv(_BACKEND_DIR / ".env")
 API_KEY = os.getenv("GEMINI_API_KEY")
 SECRET_KEY = "thisisthesecretkey987654321kjhfjsdv"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
@@ -79,6 +150,10 @@ genai.configure(api_key=API_KEY)  # type: ignore[attr-defined]
 # FastAPI app
 # -----------------------------
 app = FastAPI(title="AI Legal Companion", version="4.0")
+
+app.include_router(ocr_document_router)
+app.include_router(forgery_detection_router)
+app.include_router(land_intel_router)
 
 # Add custom validation error handler
 @app.exception_handler(RequestValidationError)
@@ -670,6 +745,17 @@ class OTPRequest(BaseModel):
 class OTPVerifyRequest(BaseModel):
     email: str
     otp_code: str
+
+
+class LandRecordQuery(BaseModel):
+    district: str
+    village: str
+    khasra_number: str
+
+
+class GeocodeRequest(BaseModel):
+    village: str
+    district: str
 
 # -----------------------------
 # Clause hints per document type (used to guide the model)
@@ -1988,3 +2074,266 @@ async def process_document(
     except Exception as e:
         logger.error(f"Error in /process: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to process document.")
+
+
+# -----------------------------
+# Land Acquisition & Dispute Assistant Endpoints
+# -----------------------------
+
+
+@app.post("/upload-land-document")
+async def upload_land_document(
+    file: UploadFile = File(...),
+    entered_owner_name: Optional[str] = Form(None),
+    entered_khasra_number: Optional[str] = Form(None),
+    entered_land_area: Optional[str] = Form(None),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """
+    Accept a land-related PDF, run OCR, analyze with Gemini, optionally geocode, and
+    persist a land_records document.
+    """
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported.")
+
+    pdf_bytes = await file.read()
+    if not pdf_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded PDF is empty.")
+
+    # OCR via pdf2image + pytesseract
+    try:
+        ocr_text = extract_text_from_pdf_bytes(pdf_bytes)
+    except Exception as e:
+        logger.error(f"OCR failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to extract text from PDF.")
+
+    if not ocr_text.strip():
+        raise HTTPException(status_code=400, detail="Could not extract any text from the document.")
+
+    # Gemini analysis
+    try:
+        analysis = analyze_land_document(ocr_text)
+    except Exception as e:
+        logger.error(f"Gemini analysis failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to analyze document with Gemini.")
+
+    owner_name = analysis.get("owner_name")
+    village = analysis.get("village")
+    district = analysis.get("district")
+    tehsil = analysis.get("tehsil")
+    khasra_number = analysis.get("khasra_number")
+    land_area = analysis.get("land_area")
+    dispute_risk_level = analysis.get("dispute_risk_level", "medium")
+
+    # Official website extraction from UP Bhulekh (best-effort; does not fail upload flow)
+    bhulekh_data: Dict[str, Any] = {}
+    bhulekh_error: Optional[str] = None
+    bhulekh_pdf: Dict[str, Any] = {}
+    bhulekh_match: Dict[str, Any] = {}
+    can_lookup_bhulekh = bool(district and village and (khasra_number or owner_name))
+    if can_lookup_bhulekh:
+        scraper = UPBhulekhScraper()
+        try:
+            loop = asyncio.get_event_loop()
+            bhulekh_data = await loop.run_in_executor(
+                bhulekh_executor,
+                lambda: scraper.fetch_record(
+                    district=str(district),
+                    tehsil=str(tehsil or ""),
+                    village=str(village),
+                    khasra=str(khasra_number or ""),
+                    owner_name=str(owner_name or ""),
+                ),
+            )
+
+            # If portal exposes a downloadable PDF for the found record, fetch + OCR + parse it.
+            pdf_url = str(bhulekh_data.get("pdf_url") or "").strip()
+            if pdf_url:
+                try:
+                    async with httpx.AsyncClient(timeout=45.0, follow_redirects=True) as client:
+                        pdf_resp = await client.get(pdf_url)
+                    if pdf_resp.status_code == 200 and pdf_resp.content:
+                        payload = pdf_resp.content
+                        if payload.startswith(b"%PDF"):
+                            parsed = extract_registry_fields_from_document(
+                                payload,
+                                filename="bhulekh_record.pdf",
+                                include_raw_text=False,
+                            )
+                            bhulekh_pdf = {
+                                "pdf_url": pdf_url,
+                                "owner": parsed.owner,
+                                "khasra": parsed.khasra,
+                                "area": parsed.area,
+                                "district": parsed.district,
+                                "tehsil": parsed.tehsil,
+                                "village": parsed.village,
+                                "khata_number": parsed.khata_number,
+                            }
+                except Exception as e:
+                    logger.warning("Bhulekh PDF download/parse failed: %s", e)
+        except (BhulekhNotFoundError, BhulekhTimeoutError, BhulekhCaptchaError, BhulekhNavigationError, ValueError) as e:
+            bhulekh_error = str(e)
+            logger.warning("Bhulekh lookup skipped/failed: %s", e)
+        except Exception as e:
+            bhulekh_error = "Bhulekh lookup failed unexpectedly."
+            logger.error("Unexpected Bhulekh lookup failure: %s", e)
+
+    # Fill missing AI-extracted fields with official Bhulekh values when available
+    if bhulekh_data:
+        owner_name = owner_name or bhulekh_data.get("owner")
+        khasra_number = khasra_number or bhulekh_data.get("khasra")
+        land_area = land_area or bhulekh_data.get("area")
+
+    # Match score against entered details (if given), else extracted analysis values.
+    user_owner_for_match = (entered_owner_name or owner_name or "").strip()
+    user_khasra_for_match = (entered_khasra_number or khasra_number or "").strip()
+    user_area_for_match = (entered_land_area or land_area or "").strip()
+    bh_owner_for_match = str((bhulekh_pdf.get("owner") if bhulekh_pdf else bhulekh_data.get("owner", "")) or "")
+    bh_khasra_for_match = str((bhulekh_pdf.get("khasra") if bhulekh_pdf else bhulekh_data.get("khasra", "")) or "")
+    bh_area_for_match = str((bhulekh_pdf.get("area") if bhulekh_pdf else bhulekh_data.get("area", "")) or "")
+    if bh_owner_for_match or bh_khasra_for_match or bh_area_for_match:
+        bhulekh_match = _compute_bhulekh_match_score(
+            user_owner=user_owner_for_match,
+            user_khasra=user_khasra_for_match,
+            user_area=user_area_for_match,
+            bhulekh_owner=bh_owner_for_match,
+            bhulekh_khasra=bh_khasra_for_match,
+            bhulekh_area=bh_area_for_match,
+        )
+        bhulekh_match["user_input"] = {
+            "owner": user_owner_for_match,
+            "khasra": user_khasra_for_match,
+            "area": user_area_for_match,
+        }
+        bhulekh_match["bhulekh_reference"] = {
+            "owner": bh_owner_for_match,
+            "khasra": bh_khasra_for_match,
+            "area": bh_area_for_match,
+        }
+
+    # Prefer explicit coordinates from document (if model extracted them),
+    # otherwise fall back to geocoding by village/district.
+    latitude = analysis.get("latitude")
+    longitude = analysis.get("longitude")
+
+    if latitude is not None and longitude is not None:
+        try:
+            latitude = float(latitude)
+            longitude = float(longitude)
+        except (TypeError, ValueError):
+            latitude = None
+            longitude = None
+
+    if latitude is None or longitude is None:
+        if village and district:
+            try:
+                coords = await geocode_village_district(village, district)
+            except Exception as e:
+                logger.error(f"Geocoding failed for {village}, {district}: {e}")
+                coords = None
+            if coords:
+                latitude, longitude = coords
+
+    # Persist to MongoDB land_records
+    record: Dict[str, Any] = {
+        "owner": owner_name,
+        "district": district,
+        "tehsil": tehsil,
+        "village": village,
+        "khasra_number": khasra_number,
+        "area": land_area,
+        "land_type": None,
+        "latitude": latitude,
+        "longitude": longitude,
+        "dispute_status": dispute_risk_level,
+        "acquisition_authority": analysis.get("acquisition_authority"),
+        "compensation_amount": analysis.get("compensation_amount"),
+        "possible_legal_issues": analysis.get("possible_legal_issues"),
+        "raw_ocr_text": ocr_text[:5000],
+    }
+
+    try:
+        record_id = await upsert_land_record(db, record)
+    except Exception as e:
+        logger.error(f"Failed to save land record: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save land record.")
+
+    return {
+        "analysis": {
+            **analysis,
+            "owner_name": owner_name,
+            "khasra_number": khasra_number,
+            "land_area": land_area,
+        },
+        "record_id": record_id,
+        "coordinates": {
+            "latitude": latitude,
+            "longitude": longitude,
+        },
+        "bhulekh": bhulekh_data,
+        "bhulekh_pdf": bhulekh_pdf,
+        "bhulekh_match": bhulekh_match,
+        "bhulekh_error": bhulekh_error,
+    }
+
+
+@app.get("/land-record")
+async def get_land_record(
+    district: str = Query(...),
+    village: str = Query(...),
+    khasra_number: str = Query(...),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """
+    Fetch a land record from MongoDB land_records collection.
+    """
+    doc = await find_land_record(db, district=district, village=village, khasra_number=khasra_number)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Land record not found.")
+
+    doc["_id"] = str(doc["_id"])
+    if doc.get("owner"):
+        doc["owner_display"] = format_bilingual_name(str(doc["owner"]))
+    return doc
+
+
+@app.post("/geocode-location")
+async def geocode_location(
+    payload: GeocodeRequest,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """
+    Geocode a (village, district) pair and store/update a minimal land_records document
+    with these coordinates.
+    """
+    coords = await geocode_village_district(payload.village, payload.district)
+    if not coords:
+        raise HTTPException(status_code=404, detail="Location could not be geocoded.")
+
+    latitude, longitude = coords
+
+    record: Dict[str, Any] = {
+        "owner": None,
+        "district": payload.district,
+        "tehsil": None,
+        "village": payload.village,
+        "khasra_number": None,
+        "area": None,
+        "land_type": None,
+        "latitude": latitude,
+        "longitude": longitude,
+        "dispute_status": "unknown",
+    }
+
+    try:
+        record_id = await upsert_land_record(db, record)
+    except Exception as e:
+        logger.error(f"Failed to save geocoded land record: {e}")
+        raise HTTPException(status_code=500, detail="Failed to save geocoded land record.")
+
+    return {
+        "record_id": record_id,
+        "latitude": latitude,
+        "longitude": longitude,
+    }
