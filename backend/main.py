@@ -346,6 +346,7 @@ default_origins = [
     "http://127.0.0.1:5174",  # IP version
     "http://127.0.0.1:3000",  # IP version
     "http://127.0.0.1:8080",  # IP version
+    "https://lexiaii.netlify.app",  # Netlify production
 ]
 
 # Get additional origins from environment variable (comma-separated)

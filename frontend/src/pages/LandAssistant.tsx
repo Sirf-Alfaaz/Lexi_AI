@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { LandDisputeView, LandModeChooser } from "../components/land-dispute";
 import LandMap from "./LandMap";
 import type { LandMarker, DisputeRiskLevel } from "./LandMap";
+import { API_URL as API_BASE } from "../config";
 
 interface LandAnalysis {
   owner_name?: string | null;
@@ -53,7 +54,7 @@ interface BhulekhMatchScore {
   };
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
 
 export default function LandAssistant() {
   const navigate = useNavigate();

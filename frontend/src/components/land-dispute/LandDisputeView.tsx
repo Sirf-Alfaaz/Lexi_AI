@@ -11,8 +11,7 @@ import type {
   UploadedDoc,
 } from "./types";
 import "./land-dispute.tailwind.css";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+import { API_URL as API_BASE } from "../../config";
 
 function newId(): string {
   return typeof crypto !== "undefined" && crypto.randomUUID

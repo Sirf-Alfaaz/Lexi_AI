@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useLocation 
 import "./App.css"; // Using external CSS
 import { useState, useRef, useEffect } from "react";
 import LandAssistant from "./pages/LandAssistant";
+import { API_URL } from "./config";
 
 // TypeScript declarations for Web Speech API
 declare global {
@@ -338,7 +339,7 @@ function ChatTab() {
       form.append("text", question);
       form.append("language", voiceLanguage); // Use voice language for AI response
 
-      const res = await fetch("http://127.0.0.1:8000/process", {
+      const res = await fetch(`${API_URL}/process`, {
         method: "POST",
         body: form,
       });
@@ -882,7 +883,7 @@ function DocumentViewer({ content, action, stampValue }: { content: string; acti
         formData.append('stamp_value', stampValue);
       }
 
-      const response = await fetch('http://127.0.0.1:8000/generate-pdf', {
+      const response = await fetch(`${API_URL}/generate-pdf`, {
         method: 'POST',
         body: formData,
       });
@@ -1051,7 +1052,7 @@ function Processor({ defaultAction, language, setLanguage }: { defaultAction: st
         textLength: text.trim().length
       });
 
-      const res = await fetch("http://127.0.0.1:8000/process", {
+      const res = await fetch(`${API_URL}/process`, {
         method: "POST",
         body: form,
       });
@@ -1283,7 +1284,7 @@ export default function App() {
 
   const fetchAdminStats = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/admin/stats", {
+      const res = await fetch(`${API_URL}/admin/stats`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -1299,7 +1300,7 @@ export default function App() {
 
   const fetchUsersList = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/admin/users", {
+      const res = await fetch(`${API_URL}/admin/users`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -1326,9 +1327,9 @@ export default function App() {
       formData.append('username', newUserData.username);
       formData.append('password', newUserData.password);
 
-      let endpoint = "http://127.0.0.1:8000/auth/register";
+      let endpoint = `${API_URL}/auth/register`;
       if (newUserData.isAdmin) {
-        endpoint = "http://127.0.0.1:8000/admin/users/create-admin";
+        endpoint = `${API_URL}/admin/users/create-admin`;
       }
 
       const res = await fetch(endpoint, {
@@ -1361,7 +1362,7 @@ export default function App() {
     setAdminActionLoading(true);
     try {
       // Use simpler endpoint structure
-      const endpoint = `http://127.0.0.1:8000/admin/users/${user.id}/toggle-admin`;
+      const endpoint = `${API_URL}/admin/users/${user.id}/toggle-admin`;
       
       const res = await fetch(endpoint, {
         method: "PUT",
@@ -1415,7 +1416,7 @@ export default function App() {
     setAdminActionLoading(true);
     try {
       // Build URL with admin confirmation if needed
-      let url = `http://127.0.0.1:8000/admin/users/${userId}`;
+      let url = `${API_URL}/admin/users/${userId}`;
       if (userToDelete && userToDelete.is_admin) {
         url += `?admin_confirmation=${encodeURIComponent(adminDeleteConfirmation)}`;
       }
@@ -1500,7 +1501,7 @@ export default function App() {
 
   const checkAdminStatus = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/admin/stats", {
+      const res = await fetch(`${API_URL}/admin/stats`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -2152,7 +2153,7 @@ function Login({ setToken, setIsAdmin }: { setToken: (t: string) => void; setIsA
 
   const checkAdminStatus = async (token: string) => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/admin/stats", {
+      const res = await fetch(`${API_URL}/admin/stats`, {
         headers: {
           "Authorization": `Bearer ${token}`
         }
@@ -2185,7 +2186,7 @@ function Login({ setToken, setIsAdmin }: { setToken: (t: string) => void; setIsA
       setLoading(true);
       setError("");
       try {
-        const res = await fetch("http://127.0.0.1:8000/auth/send-otp", {
+        const res = await fetch(`${API_URL}/auth/send-otp`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: forgotEmail })
@@ -2215,7 +2216,7 @@ function Login({ setToken, setIsAdmin }: { setToken: (t: string) => void; setIsA
       setLoading(true);
       setError("");
       try {
-        const res = await fetch("http://127.0.0.1:8000/auth/verify-otp", {
+        const res = await fetch(`${API_URL}/auth/verify-otp`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: forgotEmail, otp_code: forgotOtp })
@@ -2244,7 +2245,7 @@ function Login({ setToken, setIsAdmin }: { setToken: (t: string) => void; setIsA
     setError("");
     
     try {
-      const res = await fetch("http://127.0.0.1:8000/auth/resend-otp", {
+      const res = await fetch(`${API_URL}/auth/resend-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: forgotEmail })
@@ -2276,7 +2277,7 @@ function Login({ setToken, setIsAdmin }: { setToken: (t: string) => void; setIsA
     try {
       console.log("Attempting login for user:", username);
       
-      const res = await fetch("http://127.0.0.1:8000/auth/login", {
+      const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password })
@@ -2557,7 +2558,7 @@ function Signup() {
     setError("");
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/auth/send-otp", {
+      const res = await fetch(`${API_URL}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email })
@@ -2593,7 +2594,7 @@ function Signup() {
     setError("");
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/auth/verify-otp", {
+      const res = await fetch(`${API_URL}/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp_code: otpCode })
@@ -2607,7 +2608,7 @@ function Signup() {
       // After OTP verification, automatically create the account
       setSuccess("Email verified successfully! Creating your account...");
       
-      const registerRes = await fetch("http://127.0.0.1:8000/auth/register", {
+      const registerRes = await fetch(`${API_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, email, password })
@@ -2636,7 +2637,7 @@ function Signup() {
     setError("");
     
     try {
-      const res = await fetch("http://127.0.0.1:8000/auth/resend-otp", {
+      const res = await fetch(`${API_URL}/auth/resend-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email })
@@ -2875,7 +2876,7 @@ function OTPTestPage() {
     setMessage("");
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/auth/send-otp", {
+      const res = await fetch(`${API_URL}/auth/send-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email })
@@ -2907,7 +2908,7 @@ function OTPTestPage() {
     setMessage("");
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/auth/verify-otp", {
+      const res = await fetch(`${API_URL}/auth/verify-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp_code: otpCode })
